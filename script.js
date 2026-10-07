@@ -7,17 +7,36 @@ const form = document.querySelector("#note-form");
 const input = document.querySelector("#note-input");
 const categorySelect = document.querySelector("#note-category");
 const errorMessage = document.querySelector("#error-message");
+const searchInput = document.querySelector("#search-input");
 const list = document.querySelector("#notes-list");
 const count = document.querySelector("#note-count");
+const clearAllBtn = document.querySelector("#clear-all-btn");
 
 // ---------- Constants ----------
+const STORAGE_KEY = "quicknotes-app";
 const MAX_LENGTH = 200;
 
-// ---------- Data ----------
-let notes = [];
+// ---------- Data (loaded from localStorage) ----------
+let notes = loadNotes();
+
+function loadNotes() {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  return saved ? JSON.parse(saved) : [];
+}
+
+function saveNotes() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+}
 
 // ---------- Render ----------
 function render() {
+  const query = searchInput.value.trim().toLowerCase();
+
+  const visible =
+    query === ""
+      ? notes
+      : notes.filter((note) => note.text.toLowerCase().includes(query));
+
   list.innerHTML = "";
 
   if (notes.length === 0) {
@@ -25,8 +44,13 @@ function render() {
     li.classList.add("empty-message");
     li.textContent = "No notes yet. Add one above!";
     list.appendChild(li);
+  } else if (visible.length === 0) {
+    const li = document.createElement("li");
+    li.classList.add("empty-message");
+    li.textContent = "No notes match your search.";
+    list.appendChild(li);
   } else {
-    notes.forEach((note) => {
+    visible.forEach((note) => {
       const li = document.createElement("li");
       li.classList.add("note", `category-${note.category}`);
 
@@ -84,12 +108,14 @@ function addNote(text, category) {
     category: category,
     createdAt: new Date().toLocaleString(),
   });
+  saveNotes();
   render();
 }
 
 // ---------- Delete note ----------
 function deleteNote(id) {
   notes = notes.filter((note) => note.id !== id);
+  saveNotes();
   render();
 }
 
@@ -113,6 +139,19 @@ form.addEventListener("submit", (event) => {
   addNote(text, categorySelect.value);
   input.value = "";
   input.focus();
+});
+
+// ---------- Live search ----------
+searchInput.addEventListener("input", render);
+
+// ---------- Clear all (bonus) ----------
+clearAllBtn.addEventListener("click", () => {
+  if (notes.length === 0) return;
+  if (confirm("Delete all notes?")) {
+    notes = [];
+    saveNotes();
+    render();
+  }
 });
 
 // ---------- Initial render ----------
